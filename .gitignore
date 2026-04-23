@@ -1,0 +1,28 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Data, model artifacts, and old plot outputs
+results/plots/
+data/
+models/
+logs/
+reddit-rwallstreetbets.zip
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+missfont.log
+
+# System
+.DS_Store
+.claude/

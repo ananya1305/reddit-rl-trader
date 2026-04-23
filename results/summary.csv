@@ -1,0 +1,17 @@
+Model,Ticker,Final Value ($),Return (%),Sharpe Ratio,Max Drawdown (%),Total Trades
+PPO with Reddit,GME,23687.41,136.87,1.145,-62.42,1
+PPO no Reddit,GME,22209.69,122.1,1.075,-18.95,12
+DQN with Reddit,GME,23687.41,136.87,1.145,-62.42,1
+Buy and Hold,GME,22794.64,127.95,1.12,-62.41,1
+PPO with Reddit,TSLA,21712.9,117.13,1.453,-29.88,1
+PPO no Reddit,TSLA,19230.98,92.31,1.245,-45.55,1
+DQN with Reddit,TSLA,22811.45,128.11,1.693,-24.95,35
+Buy and Hold,TSLA,19240.94,92.41,1.215,-45.51,1
+PPO with Reddit,AAPL,15142.48,51.42,1.75,-16.48,1
+PPO no Reddit,AAPL,14811.02,48.11,1.643,-16.59,1
+DQN with Reddit,AAPL,14838.34,48.38,1.746,-11.69,23
+Buy and Hold,AAPL,14605.13,46.05,1.589,-16.52,1
+PPO with Reddit,AMC,10000.0,0.0,0.0,0.0,0
+PPO no Reddit,AMC,10000.0,0.0,0.0,0.0,0
+DQN with Reddit,AMC,10000.0,0.0,0.0,0.0,0
+Buy and Hold,AMC,4259.44,-57.41,-0.22,-77.39,1

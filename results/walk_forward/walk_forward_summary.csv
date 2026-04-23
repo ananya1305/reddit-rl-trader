@@ -1,0 +1,17 @@
+Ticker,Model,Mean Sharpe,Std Sharpe,Min Sharpe,Max Sharpe
+AAPL,Buy-and-Hold,1.023,1.595,-0.759,2.317
+AAPL,DQN + Reddit,1.36,1.398,-0.233,2.386
+AAPL,PPO + Reddit,1.385,1.558,-0.401,2.464
+AAPL,PPO no Reddit,1.41,1.606,-0.443,2.403
+AMC,Buy-and-Hold,-0.617,0.609,-1.007,0.084
+AMC,DQN + Reddit,0.728,0.644,0.0,1.22
+AMC,PPO + Reddit,0.86,0.788,0.0,1.548
+AMC,PPO no Reddit,-0.011,0.442,-0.458,0.426
+GME,Buy-and-Hold,0.411,0.677,-0.258,1.095
+GME,DQN + Reddit,1.002,0.289,0.687,1.254
+GME,PPO + Reddit,0.739,0.616,0.052,1.241
+GME,PPO no Reddit,1.456,0.306,1.169,1.778
+TSLA,Buy-and-Hold,0.503,1.759,-1.484,1.861
+TSLA,DQN + Reddit,1.225,0.97,0.107,1.837
+TSLA,PPO + Reddit,0.34,1.298,-0.754,1.774
+TSLA,PPO no Reddit,0.896,2.136,-1.427,2.776
