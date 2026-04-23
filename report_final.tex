@@ -150,6 +150,19 @@ the generalized advantage estimate \citep{schulman2015high}.
 The clipping prevents a single bad update from collapsing the
 policy, which matters in a noisy financial environment.
 
+\smallskip
+\noindent\textbf{PPO training loop (simplified):}
+\begin{quote}
+\noindent\textbf{Input:} environment, $\pi_\theta$, $V_\phi$, clip $\varepsilon$, epochs $K$\\[1pt]
+\textbf{repeat}\\[1pt]
+\hspace*{1.2em}collect rollout buffer $\mathcal{B}$ of $T$ transitions\\[1pt]
+\hspace*{1.2em}compute GAE advantages $\hat{A}_t$ for each $t \in \mathcal{B}$\\[1pt]
+\hspace*{1.2em}\textbf{for} $k = 1$ \textbf{to} $K$ \textbf{do}\\[1pt]
+\hspace*{2.4em}sample mini-batch; update $\theta$ on $\mathcal{L}^{\text{clip}}$; update $\phi$ on value loss\\[1pt]
+\hspace*{1.2em}\textbf{end for};\enspace clear $\mathcal{B}$\\[1pt]
+\textbf{until} 500{,}000 timesteps
+\end{quote}
+
 \subsection{Deep Q-Networks}
 
 DQN \citep{mnih2015human} learns an action-value function
@@ -167,6 +180,19 @@ can revisit rare high-reward events repeatedly during training.
 This turns out to matter for trading: significant sentiment
 spikes happen infrequently, and being able to reuse those
 experiences helps the agent learn their value.
+
+\smallskip
+\noindent\textbf{DQN training loop (simplified):}
+\begin{quote}
+\noindent\textbf{Input:} environment, replay buffer $\mathcal{D}$, target network $\theta^{-}$\\[1pt]
+\textbf{repeat}\\[1pt]
+\hspace*{1.2em}with prob.\ $\varepsilon$ pick random $a_t$, else $a_t = \arg\max_a Q(s_t,a;\theta)$\\[1pt]
+\hspace*{1.2em}execute $a_t$; store $(s_t, a_t, r_t, s_{t+1})$ in $\mathcal{D}$\\[1pt]
+\hspace*{1.2em}sample mini-batch $(s,a,r,s')$ from $\mathcal{D}$\\[1pt]
+\hspace*{1.2em}set $y = r + \gamma\max_{a'} Q(s',a';\theta^{-})$; update $\theta$ on $(y - Q(s,a;\theta))^2$\\[1pt]
+\hspace*{1.2em}every 1{,}000 steps: $\theta^{-} \leftarrow \theta$;\enspace decay $\varepsilon$ toward 0.05\\[1pt]
+\textbf{until} 500{,}000 timesteps
+\end{quote}
 
 \subsection{Sentence-BERT Embeddings}
 
