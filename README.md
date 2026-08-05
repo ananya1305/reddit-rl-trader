@@ -1,11 +1,9 @@
 # Reddit-Augmented RL Stock Trader
-
-CS 5180 (Reinforcement Learning) final project. Trains PPO and DQN agents to
+Trains PPO and DQN agents to
 trade GME, TSLA, AAPL, and AMC, and tests whether adding Reddit post
 embeddings (from r/WallStreetBets and related subreddits) to the agent's
 observations improves trading performance over price-only agents.
 
-Full writeup: [`report_final.pdf`](report_final.pdf) / [`report_final.tex`](report_final.tex).
 
 ## Summary of findings
 
