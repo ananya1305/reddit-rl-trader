@@ -4,12 +4,11 @@ trade GME, TSLA, AAPL, and AMC, and tests whether adding Reddit post
 embeddings (from r/WallStreetBets and related subreddits) to the agent's
 observations improves trading performance over price-only agents.
 
-**Interactive dashboard**: a standalone backtest explorer built from `results/`
-lives in [`docs/`](docs/) — pick a ticker/model and compare Sharpe, return, and
-drawdown against buy-and-hold, see the walk-forward breakdown by year, and read
-the report's key findings per ticker. See
-[Deploying the dashboard](#deploying-the-dashboard) to put it online in under a
-minute.
+**[Live dashboard →](https://ananya1305.github.io/reddit-rl-trader/)** — pick a
+ticker/model and compare Sharpe, return, and drawdown against buy-and-hold, see
+the walk-forward breakdown by year, and read the report's key findings per
+ticker. Source in [`docs/`](docs/); see
+[Deploying the dashboard](#deploying-the-dashboard) to run your own copy.
 
 ## Summary of findings
 
@@ -133,9 +132,15 @@ on every push/PR via `.github/workflows/ci.yml`.
 ## Deploying the dashboard
 
 `docs/index.html` is a self-contained static page (no build step, no npm, no
-server) — it just needs to be served alongside `docs/report_final.pdf`.
+server) — it just needs to be served alongside `docs/report_final.pdf`. It's
+currently deployed via **GitHub Pages**, serving `main` / `/docs`, redeploying
+automatically on every push (Settings → Pages if you want to reconfigure it).
 
-**Vercel (recommended — free, custom domain, instant HTTPS):**
+To deploy your own fork/copy instead:
+
+**GitHub Pages:** Settings → Pages → Deploy from a branch → `main` → folder `/docs`.
+
+**Vercel** (free, custom domain, instant HTTPS):
 
 ```bash
 npm i -g vercel        # one-time
@@ -144,11 +149,7 @@ vercel --prod
 ```
 
 Or without the CLI: on [vercel.com](https://vercel.com), "Add New Project" →
-import this repo → set **Root Directory** to `docs` → deploy. Every push to
-`main` then redeploys automatically.
-
-**GitHub Pages (free, zero extra accounts, already tied to this repo):**
-Settings → Pages → Deploy from a branch → `main` → folder `/docs`.
+import the repo → set **Root Directory** to `docs` → deploy.
 
 Either way the dashboard is fully static: it reads no external APIs and only
 needs `index.html` and `report_final.pdf` in the same directory.
