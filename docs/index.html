@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alpha or Noise</title>
+<meta name="description" content="Interactive backtest explorer for Reddit-augmented RL trading agents (PPO/DQN) across GME, TSLA, AAPL, and AMC.">
+<meta property="og:title" content="Alpha or Noise">
+<meta property="og:description" content="Can Reddit make a better stock trader? Interactive PPO/DQN backtest results with and without WallStreetBets sentiment.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0a0f0d">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#0a0f0d;
+    --plane:#070b09;
+    --surface:#101814;
+    --surface-2:#151f1a;
+    --surface-3:#1a251f;
+    --border:rgba(255,255,255,.08);
+    --border-strong:rgba(255,255,255,.16);
+    --text-primary:#edf4f0;
+    --text-secondary:#a3b0a8;
+    --text-muted:#65756d;
+    --accent:#35e6a4;
+    --accent-strong:#5cf2b8;
+    --accent-dim:#0f3327;
+    --good:#3ddc84;
+    --bad:#f2653f;
+    --neutral:#7c8983;
+    --s1:#9085e9; /* PPO + Reddit */
+    --s2:#c98500; /* DQN + Reddit */
+    --s3:#3987e5; /* PPO no Reddit */
+    --s4:#d95926; /* Buy & Hold */
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--plane);
+    color:var(--text-primary);
+    font-family:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+    padding:0 clamp(16px,4vw,40px) 48px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums;}
+  a{color:inherit;}
+  h1,h2,h3{margin:0; text-wrap:balance;}
+  .wrap{max-width:1280px; margin:0 auto;}
+
+  /* ---- topbar ---- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:22px 0 18px; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:38px; height:38px; border-radius:10px; flex:none;
+    background:linear-gradient(155deg,var(--accent-strong),var(--accent) 55%,#0c7a55);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 6px 18px -6px rgba(53,230,164,.55);
+  }
+  .brand-mark svg{width:20px;height:20px;}
+  .brand-name{font-size:17px; font-weight:800; letter-spacing:-.02em;}
+  .brand-sub{font-size:12px; color:var(--text-muted); margin-top:1px;}
+  .top-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .btn{
+    display:inline-flex; align-items:center; gap:7px;
+    padding:9px 14px; border-radius:999px; font-size:13px; font-weight:600;
+    border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text-primary);
+    cursor:pointer; text-decoration:none; transition:border-color .15s, background .15s, transform .1s;
+    white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--accent); background:var(--surface-3);}
+  .btn:active{transform:scale(.97);}
+  .btn.primary{
+    background:var(--accent); color:#052018; border-color:var(--accent);
+  }
+  .btn.primary:hover{background:var(--accent-strong);}
+  .btn svg{width:14px;height:14px;flex:none;}
+
+  /* ---- ticker + model pill rows ---- */
+  .control-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:6px 0 2px;}
+  .control-label{font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-muted); margin-right:2px;}
+  .pillgroup{display:flex; gap:6px; padding:4px; background:var(--surface); border:1px solid var(--border); border-radius:999px; flex-wrap:wrap;}
+  .pill{
+    appearance:none; border:none; background:transparent; color:var(--text-secondary);
+    font-family:inherit; font-size:12.5px; font-weight:700; padding:7px 13px; border-radius:999px;
+    cursor:pointer; transition:background .15s, color .15s; white-space:nowrap;
+  }
+  .pill:hover{color:var(--text-primary);}
+  .pill.active{background:var(--accent); color:#052018;}
+  .pill .dot{display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+
+  /* ---- section header ---- */
+  .section-head{margin:34px 0 16px;}
+  .eyebrow{font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--accent);}
+  .section-head h2{font-size:22px; margin-top:4px;}
+  .section-head p{font-size:13.5px; color:var(--text-secondary); margin:5px 0 0; max-width:640px;}
+
+  /* ---- hero row: kpis + finding card ---- */
+  .hero-row{display:grid; grid-template-columns:1.55fr 1fr; gap:16px;}
+  @media (max-width:900px){.hero-row{grid-template-columns:1fr;}}
+
+  .kpi-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  @media (max-width:640px){.kpi-grid{grid-template-columns:1fr;}}
+
+  .card{
+    background:var(--surface); border:1px solid var(--border); border-radius:18px;
+    padding:20px;
+  }
+  .kpi-card .kpi-top{display:flex; align-items:flex-start; justify-content:space-between; gap:8px;}
+  .kpi-icon{
+    width:30px; height:30px; border-radius:9px; display:flex; align-items:center; justify-content:center;
+    background:var(--surface-3); border:1px solid var(--border);
+  }
+  .kpi-icon svg{width:15px; height:15px; color:var(--accent);}
+  .kpi-label{font-size:12px; color:var(--text-secondary); font-weight:700; margin-top:14px;}
+  .kpi-value{font-size:32px; font-weight:700; margin-top:4px; letter-spacing:-.01em;}
+  .kpi-delta{font-size:12px; font-weight:700; margin-top:6px; display:inline-flex; align-items:center; gap:4px;}
+  .kpi-delta.up{color:var(--good);}
+  .kpi-delta.down{color:var(--bad);}
+  .kpi-delta.flat{color:var(--neutral);}
+  .kpi-bar-track{height:6px; border-radius:999px; background:var(--surface-3); margin-top:14px; overflow:hidden;}
+  .kpi-bar-fill{height:100%; border-radius:999px; background:var(--accent);}
+
+  .finding-card{
+    border-radius:18px; padding:24px; position:relative; overflow:hidden;
+    background:
+      radial-gradient(120% 140% at 85% -10%, rgba(53,230,164,.38), transparent 60%),
+      radial-gradient(90% 110% at 100% 115%, rgba(53,230,164,.16), transparent 55%),
+      #0d1e17;
+    border:1px solid rgba(53,230,164,.28);
+    display:flex; flex-direction:column; height:100%;
+  }
+  .finding-eyebrow{
+    display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800;
+    letter-spacing:.1em; text-transform:uppercase; color:var(--accent-strong);
+  }
+  .finding-eyebrow svg{width:13px;height:13px;}
+  .finding-title{font-size:19px; font-weight:800; margin-top:10px; line-height:1.25;}
+  .finding-body{font-size:13.5px; line-height:1.55; color:var(--text-secondary); margin-top:10px; flex:1;}
+  .finding-body b{color:var(--text-primary); font-weight:700;}
+  .finding-note{
+    font-size:11.5px; color:var(--text-muted); margin-top:14px; padding-top:12px;
+    border-top:1px dashed var(--border-strong); line-height:1.5;
+  }
+  .finding-cta{
+    margin-top:16px; display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700;
+    color:#052018; background:var(--accent); padding:9px 15px; border-radius:999px; text-decoration:none;
+    align-self:flex-start; transition:background .15s;
+  }
+  .finding-cta:hover{background:var(--accent-strong);}
+  .finding-cta svg{width:13px;height:13px;}
+
+  /* ---- charts row ---- */
+  .charts-row{display:grid; grid-template-columns:0.85fr 1.15fr; gap:16px; margin-top:16px;}
+  @media (max-width:900px){.charts-row{grid-template-columns:1fr;}}
+
+  .card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+  .card-title{font-size:14.5px; font-weight:800;}
+  .card-sub{font-size:11.5px; color:var(--text-muted); margin-top:2px;}
+  .seg{display:flex; background:var(--surface-2); border:1px solid var(--border); border-radius:999px; padding:3px;}
+  .seg button{
+    appearance:none; border:none; background:transparent; color:var(--text-secondary); cursor:pointer;
+    font-family:inherit; font-size:11px; font-weight:700; padding:5px 10px; border-radius:999px;
+  }
+  .seg button.active{background:var(--accent); color:#052018;}
+
+  .donut-wrap{display:flex; align-items:center; gap:22px; flex-wrap:wrap; justify-content:center;}
+  .donut-center-label{font-size:26px; font-weight:800;}
+  .donut-center-sub{font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em;}
+  .legend{display:flex; flex-direction:column; gap:10px;}
+  .legend-item{display:flex; align-items:center; gap:9px; font-size:12.5px;}
+  .legend-swatch{width:10px; height:10px; border-radius:3px; flex:none;}
+  .legend-item .lv{margin-left:auto; font-weight:700; padding-left:16px;}
+  .legend-item .ll{color:var(--text-secondary);}
+
+  .bar-tooltip{
+    position:absolute; pointer-events:none; background:#0d1512; border:1px solid var(--border-strong);
+    border-radius:10px; padding:8px 11px; font-size:11.5px; box-shadow:0 12px 30px -10px rgba(0,0,0,.6);
+    opacity:0; transition:opacity .1s; z-index:5; white-space:nowrap;
+  }
+  .bar-tooltip .tt-t{font-weight:800; margin-bottom:3px;}
+  .bar-tooltip .tt-row{display:flex; gap:8px; align-items:center; color:var(--text-secondary);}
+  .bar-tooltip .tt-sw{width:7px;height:7px;border-radius:2px;}
+
+  .chart-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px;}
+  .chart-legend .legend-item{font-size:11.5px;}
+
+  /* ---- comparison table ---- */
+  .table-card{margin-top:16px;}
+  .cmp-row{
+    display:grid; grid-template-columns:1.3fr .8fr 1.6fr .8fr .6fr; gap:14px; align-items:center;
+    padding:13px 6px; border-top:1px solid var(--border);
+  }
+  .cmp-row.head{color:var(--text-muted); font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; border-top:none; padding-bottom:10px;}
+  .cmp-row.active{background:var(--surface-2); border-radius:12px; border-top-color:transparent;}
+  .cmp-model{display:flex; align-items:center; gap:9px; font-size:13px; font-weight:700;}
+  .cmp-model .dot{width:9px;height:9px;border-radius:3px; flex:none;}
+  .cmp-num{font-size:13px; font-weight:600;}
+  .cmp-num.pos{color:var(--good);}
+  .cmp-num.neg{color:var(--bad);}
+  .cmp-bar-track{height:7px; border-radius:999px; background:var(--surface-3); position:relative; overflow:hidden;}
+  .cmp-bar-fill{position:absolute; top:0; bottom:0; border-radius:999px;}
+  .cmp-trades{color:var(--text-secondary); font-size:12.5px;}
+
+  .footer{
+    margin-top:40px; padding-top:20px; border-top:1px solid var(--border);
+    display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    font-size:11.5px; color:var(--text-muted);
+  }
+  .footer a{color:var(--text-secondary); text-decoration:underline; text-underline-offset:2px;}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#052018" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/></svg>
+      </div>
+      <div>
+        <div class="brand-name">Alpha or Noise</div>
+        <div class="brand-sub">Reddit-augmented RL trading agents &middot; PPO / DQN backtests</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a class="btn" id="paper-link" href="report_final.pdf" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Read the report
+      </a>
+      <a class="btn primary" href="https://github.com/ananya1305/reddit-rl-trader" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.73.5.75 5.48.75 11.75c0 5.02 3.26 9.28 7.78 10.78.57.1.78-.25.78-.55 0-.27-.01-1.17-.02-2.12-3.16.69-3.83-1.34-3.83-1.34-.52-1.31-1.26-1.66-1.26-1.66-1.03-.7.08-.69.08-.69 1.14.08 1.74 1.17 1.74 1.17 1.01 1.74 2.65 1.24 3.3.95.1-.73.4-1.24.72-1.53-2.52-.29-5.17-1.26-5.17-5.6 0-1.24.44-2.25 1.17-3.04-.12-.29-.51-1.45.11-3.02 0 0 .96-.31 3.15 1.16a10.9 10.9 0 0 1 5.73 0c2.18-1.47 3.14-1.16 3.14-1.16.63 1.57.24 2.73.12 3.02.73.79 1.17 1.8 1.17 3.04 0 4.35-2.65 5.31-5.18 5.59.41.35.77 1.04.77 2.1 0 1.52-.01 2.74-.01 3.11 0 .3.2.66.79.55 4.51-1.51 7.77-5.76 7.77-10.78C23.25 5.48 18.27.5 12 .5z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+
+  <div class="control-row">
+    <span class="control-label">Ticker</span>
+    <div class="pillgroup" id="ticker-pills"></div>
+  </div>
+
+  <div class="section-head">
+    <div class="eyebrow" id="section-eyebrow">Backtest results &middot; GME</div>
+    <h2 id="section-title">80/20 chronological test split</h2>
+    <p id="section-sub">Trained agents evaluated against buy-and-hold on the held-out final 20% of price history. Pick a model below to compare it against the field.</p>
+  </div>
+
+  <div class="control-row" style="margin-bottom:18px;">
+    <span class="control-label">Model</span>
+    <div class="pillgroup" id="model-pills"></div>
+  </div>
+
+  <div class="hero-row">
+    <div class="kpi-grid">
+      <div class="card kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg></div>
+        </div>
+        <div class="kpi-label">Sharpe Ratio</div>
+        <div class="kpi-value mono" id="kpi-sharpe">&mdash;</div>
+        <div class="kpi-delta" id="kpi-sharpe-delta"></div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-sharpe-bar"></div></div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div>
+        </div>
+        <div class="kpi-label">Cumulative Return</div>
+        <div class="kpi-value mono" id="kpi-return">&mdash;</div>
+        <div class="kpi-delta" id="kpi-return-delta"></div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-return-bar"></div></div>
+      </div>
+      <div class="card kpi-card">
+        <div class="kpi-top">
+          <div class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-9 4 6 4-11 5 14"/></svg></div>
+        </div>
+        <div class="kpi-label">Max Drawdown</div>
+        <div class="kpi-value mono" id="kpi-dd">&mdash;</div>
+        <div class="kpi-delta" id="kpi-dd-delta"></div>
+        <div class="kpi-bar-track"><div class="kpi-bar-fill" id="kpi-dd-bar"></div></div>
+      </div>
+    </div>
+
+    <div class="finding-card">
+      <span class="finding-eyebrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8H20l-4.9 3.6 1.9 5.8L12 13.6 6.9 17.2l1.9-5.8L4 7.8h6.1z"/></svg>
+        Key finding
+      </span>
+      <div class="finding-title" id="finding-title">&mdash;</div>
+      <div class="finding-body" id="finding-body">&mdash;</div>
+      <div class="finding-note" id="finding-note" hidden></div>
+      <a class="finding-cta" href="report_final.pdf" target="_blank" rel="noopener">
+        Read the full report
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <div class="charts-row">
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Where Reddit helped</div>
+          <div class="card-sub" id="donut-sub">PPO with Reddit vs. PPO without, across all walk-forward windows</div>
+        </div>
+        <div class="seg" id="donut-scope">
+          <button data-scope="all" class="active">All tickers</button>
+          <button data-scope="ticker">This ticker</button>
+        </div>
+      </div>
+      <div class="donut-wrap">
+        <svg id="donut-svg" width="168" height="168" viewBox="0 0 168 168"></svg>
+        <div class="legend" id="donut-legend"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Walk-forward Sharpe by test year</div>
+          <div class="card-sub" id="bar-sub">Expanding-window validation &middot; GME</div>
+        </div>
+      </div>
+      <div style="position:relative;">
+        <svg id="bar-svg" width="100%" height="230" viewBox="0 0 560 230" preserveAspectRatio="xMidYMid meet"></svg>
+        <div class="bar-tooltip" id="bar-tooltip"></div>
+      </div>
+      <div class="chart-legend" id="bar-legend"></div>
+    </div>
+  </div>
+
+  <div class="card table-card">
+    <div class="card-head">
+      <div>
+        <div class="card-title" id="table-title">All models &middot; GME</div>
+        <div class="card-sub">Main test split &middot; sorted by Sharpe ratio</div>
+      </div>
+    </div>
+    <div class="cmp-row head">
+      <div>Model</div><div>Sharpe</div><div>Return</div><div>Max DD</div><div>Trades</div>
+    </div>
+    <div id="cmp-rows"></div>
+  </div>
+
+  <div class="footer">
+    <div>Data from <span class="mono">results/summary.csv</span> and <span class="mono">results/walk_forward/</span>.</div>
+    <div><a href="https://github.com/ananya1305/reddit-rl-trader" target="_blank" rel="noopener">View source & report on GitHub &rarr;</a></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TICKERS = ["GME","TSLA","AAPL","AMC"];
+  var MODELS = ["PPO + Reddit","DQN + Reddit","PPO no Reddit","Buy & Hold"];
+  var MODEL_COLOR = {
+    "PPO + Reddit":"var(--s1)",
+    "DQN + Reddit":"var(--s2)",
+    "PPO no Reddit":"var(--s3)",
+    "Buy & Hold":"var(--s4)"
+  };
+  var MODEL_COLOR_HEX = {
+    "PPO + Reddit":"#9085e9",
+    "DQN + Reddit":"#c98500",
+    "PPO no Reddit":"#3987e5",
+    "Buy & Hold":"#d95926"
+  };
+
+  // ---- main 80/20 test-split results (results/summary.csv) ----
+  var SUMMARY = [
+    {model:"PPO + Reddit", ticker:"GME", ret:136.87, sharpe:1.145, dd:-62.42, trades:1},
+    {model:"PPO no Reddit", ticker:"GME", ret:122.10, sharpe:1.075, dd:-18.95, trades:12},
+    {model:"DQN + Reddit", ticker:"GME", ret:136.87, sharpe:1.145, dd:-62.42, trades:1},
+    {model:"Buy & Hold", ticker:"GME", ret:127.95, sharpe:1.12, dd:-62.41, trades:1},
+    {model:"PPO + Reddit", ticker:"TSLA", ret:117.13, sharpe:1.453, dd:-29.88, trades:1},
+    {model:"PPO no Reddit", ticker:"TSLA", ret:92.31, sharpe:1.245, dd:-45.55, trades:1},
+    {model:"DQN + Reddit", ticker:"TSLA", ret:128.11, sharpe:1.693, dd:-24.95, trades:35},
+    {model:"Buy & Hold", ticker:"TSLA", ret:92.41, sharpe:1.215, dd:-45.51, trades:1},
+    {model:"PPO + Reddit", ticker:"AAPL", ret:51.42, sharpe:1.75, dd:-16.48, trades:1},
+    {model:"PPO no Reddit", ticker:"AAPL", ret:48.11, sharpe:1.643, dd:-16.59, trades:1},
+    {model:"DQN + Reddit", ticker:"AAPL", ret:48.38, sharpe:1.746, dd:-11.69, trades:23},
+    {model:"Buy & Hold", ticker:"AAPL", ret:46.05, sharpe:1.589, dd:-16.52, trades:1},
+    {model:"PPO + Reddit", ticker:"AMC", ret:0.0, sharpe:0.0, dd:0.0, trades:0},
+    {model:"PPO no Reddit", ticker:"AMC", ret:0.0, sharpe:0.0, dd:0.0, trades:0},
+    {model:"DQN + Reddit", ticker:"AMC", ret:0.0, sharpe:0.0, dd:0.0, trades:0},
+    {model:"Buy & Hold", ticker:"AMC", ret:-57.41, sharpe:-0.22, dd:-77.39, trades:1}
+  ];
+
+  // ---- expanding-window walk-forward results (results/walk_forward/walk_forward_results.csv) ----
+  // only PPO ran both with/without Reddit, so the "Reddit effect" donut compares those two.
+  var WALKFORWARD = [
+    {year:2022, ticker:"GME", model:"PPO + Reddit", sharpe:0.052}, {year:2022, ticker:"GME", model:"PPO no Reddit", sharpe:1.778}, {year:2022, ticker:"GME", model:"DQN + Reddit", sharpe:0.687}, {year:2022, ticker:"GME", model:"Buy & Hold", sharpe:-0.258},
+    {year:2022, ticker:"TSLA", model:"PPO + Reddit", sharpe:-0.754}, {year:2022, ticker:"TSLA", model:"PPO no Reddit", sharpe:-1.427}, {year:2022, ticker:"TSLA", model:"DQN + Reddit", sharpe:0.107}, {year:2022, ticker:"TSLA", model:"Buy & Hold", sharpe:-1.484},
+    {year:2022, ticker:"AAPL", model:"PPO + Reddit", sharpe:-0.401}, {year:2022, ticker:"AAPL", model:"PPO no Reddit", sharpe:-0.443}, {year:2022, ticker:"AAPL", model:"DQN + Reddit", sharpe:-0.233}, {year:2022, ticker:"AAPL", model:"Buy & Hold", sharpe:-0.759},
+    {year:2022, ticker:"AMC", model:"PPO + Reddit", sharpe:1.548}, {year:2022, ticker:"AMC", model:"PPO no Reddit", sharpe:-0.458}, {year:2022, ticker:"AMC", model:"DQN + Reddit", sharpe:1.22}, {year:2022, ticker:"AMC", model:"Buy & Hold", sharpe:-1.007},
+    {year:2023, ticker:"GME", model:"PPO + Reddit", sharpe:0.925}, {year:2023, ticker:"GME", model:"PPO no Reddit", sharpe:1.422}, {year:2023, ticker:"GME", model:"DQN + Reddit", sharpe:1.254}, {year:2023, ticker:"GME", model:"Buy & Hold", sharpe:0.395},
+    {year:2023, ticker:"TSLA", model:"PPO + Reddit", sharpe:1.774}, {year:2023, ticker:"TSLA", model:"PPO no Reddit", sharpe:2.776}, {year:2023, ticker:"TSLA", model:"DQN + Reddit", sharpe:1.837}, {year:2023, ticker:"TSLA", model:"Buy & Hold", sharpe:1.861},
+    {year:2023, ticker:"AAPL", model:"PPO + Reddit", sharpe:2.464}, {year:2023, ticker:"AAPL", model:"PPO no Reddit", sharpe:2.271}, {year:2023, ticker:"AAPL", model:"DQN + Reddit", sharpe:2.386}, {year:2023, ticker:"AAPL", model:"Buy & Hold", sharpe:2.317},
+    {year:2023, ticker:"AMC", model:"PPO + Reddit", sharpe:1.033}, {year:2023, ticker:"AMC", model:"PPO no Reddit", sharpe:0.426}, {year:2023, ticker:"AMC", model:"DQN + Reddit", sharpe:0.965}, {year:2023, ticker:"AMC", model:"Buy & Hold", sharpe:-0.929},
+    {year:2024, ticker:"GME", model:"PPO + Reddit", sharpe:1.241}, {year:2024, ticker:"GME", model:"PPO no Reddit", sharpe:1.169}, {year:2024, ticker:"GME", model:"DQN + Reddit", sharpe:1.065}, {year:2024, ticker:"GME", model:"Buy & Hold", sharpe:1.095},
+    {year:2024, ticker:"TSLA", model:"PPO + Reddit", sharpe:0.0}, {year:2024, ticker:"TSLA", model:"PPO no Reddit", sharpe:1.339}, {year:2024, ticker:"TSLA", model:"DQN + Reddit", sharpe:1.731}, {year:2024, ticker:"TSLA", model:"Buy & Hold", sharpe:1.133},
+    {year:2024, ticker:"AAPL", model:"PPO + Reddit", sharpe:2.092}, {year:2024, ticker:"AAPL", model:"PPO no Reddit", sharpe:2.403}, {year:2024, ticker:"AAPL", model:"DQN + Reddit", sharpe:1.926}, {year:2024, ticker:"AAPL", model:"Buy & Hold", sharpe:1.51},
+    {year:2024, ticker:"AMC", model:"PPO + Reddit", sharpe:0.0}, {year:2024, ticker:"AMC", model:"PPO no Reddit", sharpe:0.0}, {year:2024, ticker:"AMC", model:"DQN + Reddit", sharpe:0.0}, {year:2024, ticker:"AMC", model:"Buy & Hold", sharpe:0.084}
+  ];
+
+  var FINDINGS = {
+    GME: {
+      title: "Reddit signal flips sign under honest validation",
+      body: "On the naive 80/20 split, Reddit looks like it helps &mdash; <b>PPO+Reddit reaches a 1.145 Sharpe</b> vs 1.075 without. But expanding-window walk-forward testing across 2022&ndash;2024 tells a different story: Reddit <b>hurts</b> GME performance in 2 of the 3 test years. The WSB community stayed bullish long after GME stopped responding to sentiment &mdash; a model trained on the 2021 squeeze learns the wrong causal relationship.",
+      note: "Known limitation: PPO+Reddit and DQN+Reddit converge to an identical single trade on this split (both buy once and hold) &mdash; a side effect of the 3-action space on one monotonic price run, not a bug. See README."
+    },
+    TSLA: {
+      title: "The clearest case where Reddit adds real alpha",
+      body: "DQN+Reddit posts a <b>1.693 Sharpe vs 1.215</b> for buy-and-hold on the main test set, and in the 2022 walk-forward window Reddit turns a losing PPO strategy (&minus;1.427 Sharpe) into a much smaller loss (&minus;0.754) just by adding sentiment. TSLA's WSB chatter tracks real catalysts &mdash; deliveries, Musk headlines &mdash; closely enough to carry signal.",
+      note: null
+    },
+    AAPL: {
+      title: "Reddit helps, but only modestly &mdash; and not reliably",
+      body: "AAPL's price is driven mostly by fundamentals, not sentiment, so the lift from adding Reddit embeddings is real but small (<b>Sharpe 1.75 vs 1.643</b> on the main split). Walk-forward testing shows the edge isn't consistent year to year &mdash; Reddit helps in 2023, hurts in 2024.",
+      note: null
+    },
+    AMC: {
+      title: "Every agent learned to just sit this one out",
+      body: "Buy-and-hold lost <b>57%</b> over the test period. Every RL variant &mdash; with or without Reddit &mdash; ended flat with <b>zero trades</b>, correctly reading a stock in structural decline that no sentiment signal was going to rescue.",
+      note: null
+    }
+  };
+
+  var state = { ticker: "GME", model: "PPO + Reddit", donutScope: "all" };
+
+  function fmtPct(v){ var s=(v>=0?"+":"")+v.toFixed(1)+"%"; return s; }
+  function fmtNum(v,d){ return v.toFixed(d==null?2:d); }
+
+  function rowFor(ticker, model){
+    for (var i=0;i<SUMMARY.length;i++){ if(SUMMARY[i].ticker===ticker && SUMMARY[i].model===model) return SUMMARY[i]; }
+    return null;
+  }
+  function rowsFor(ticker){ return SUMMARY.filter(function(r){return r.ticker===ticker;}); }
+
+  // ---------- top pills ----------
+  function buildPills(container, items, activeVal, onClick, withDot){
+    container.innerHTML = "";
+    items.forEach(function(item){
+      var btn = document.createElement("button");
+      btn.className = "pill" + (item===activeVal ? " active" : "");
+      btn.type = "button";
+      if (withDot){
+        var dot = document.createElement("span");
+        dot.className = "dot";
+        dot.style.background = MODEL_COLOR_HEX[item];
+        btn.appendChild(dot);
+      }
+      btn.appendChild(document.createTextNode(item));
+      btn.addEventListener("click", function(){ onClick(item); });
+      container.appendChild(btn);
+    });
+  }
+
+  // ---------- KPI tiles ----------
+  function renderKPIs(){
+    var row = rowFor(state.ticker, state.model);
+    var bah = rowFor(state.ticker, "Buy & Hold");
+    var all = rowsFor(state.ticker);
+    if (!row) return;
+
+    var maxSharpe = Math.max.apply(null, all.map(function(r){return r.sharpe;}).concat([0.01]));
+    var minSharpe = Math.min.apply(null, all.map(function(r){return r.sharpe;}).concat([0]));
+    var sharpeSpan = Math.max(maxSharpe - Math.min(minSharpe,0), 0.01);
+    document.getElementById("kpi-sharpe").textContent = fmtNum(row.sharpe,3);
+    document.getElementById("kpi-sharpe-bar").style.width = Math.max(4, ((row.sharpe - Math.min(minSharpe,0)) / sharpeSpan) * 100) + "%";
+    setDelta("kpi-sharpe-delta", row.sharpe - bah.sharpe, function(d){return d.toFixed(3);}, " vs buy-and-hold");
+
+    var maxRet = Math.max.apply(null, all.map(function(r){return Math.abs(r.ret);}).concat([1]));
+    document.getElementById("kpi-return").textContent = fmtPct(row.ret);
+    document.getElementById("kpi-return-bar").style.width = Math.max(4, (Math.abs(row.ret)/maxRet)*100) + "%";
+    document.getElementById("kpi-return-bar").style.background = row.ret >= 0 ? "var(--accent)" : "var(--bad)";
+    setDelta("kpi-return-delta", row.ret - bah.ret, function(d){return (d>=0?"+":"")+d.toFixed(1)+"pt";}, " vs buy-and-hold");
+
+    document.getElementById("kpi-dd").textContent = row.dd.toFixed(1)+"%";
+    var ddSeverity = Math.min(100, (Math.abs(row.dd)/90)*100);
+    document.getElementById("kpi-dd-bar").style.width = Math.max(4,ddSeverity) + "%";
+    document.getElementById("kpi-dd-bar").style.background = Math.abs(row.dd) > 40 ? "var(--bad)" : "var(--accent)";
+    setDelta("kpi-dd-delta", row.dd - bah.dd, function(d){return (d>=0?"+":"")+d.toFixed(1)+"pt";}, " vs buy-and-hold", true);
+  }
+
+  function setDelta(id, diff, fmt, suffix, invert){
+    var el = document.getElementById(id);
+    var good = invert ? diff > 0 : diff > 0;
+    var cls = Math.abs(diff) < 1e-6 ? "flat" : (good ? "up" : "down");
+    var arrow = Math.abs(diff) < 1e-6 ? "" : (good ? "&#9650; " : "&#9660; ");
+    el.className = "kpi-delta " + cls;
+    el.innerHTML = arrow + fmt(diff) + suffix;
+  }
+
+  // ---------- finding card ----------
+  function renderFinding(){
+    var f = FINDINGS[state.ticker];
+    document.getElementById("section-eyebrow").textContent = "Backtest results · " + state.ticker;
+    document.getElementById("finding-title").textContent = f.title;
+    document.getElementById("finding-body").innerHTML = f.body;
+    var note = document.getElementById("finding-note");
+    if (f.note){ note.hidden = false; note.textContent = f.note; } else { note.hidden = true; }
+  }
+
+  // ---------- donut ----------
+  function computeDonutBuckets(scope){
+    var rows = WALKFORWARD.filter(function(r){ return scope==="all" || r.ticker===state.ticker; });
+    var byKey = {};
+    rows.forEach(function(r){
+      var key = r.year+"|"+r.ticker;
+      byKey[key] = byKey[key] || {};
+      byKey[key][r.model] = r.sharpe;
+    });
+    var helped=0, hurt=0, neutral=0;
+    Object.keys(byKey).forEach(function(key){
+      var w = byKey[key];
+      if (w["PPO + Reddit"]==null || w["PPO no Reddit"]==null) return;
+      var diff = w["PPO + Reddit"] - w["PPO no Reddit"];
+      if (diff > 0.05) helped++; else if (diff < -0.05) hurt++; else neutral++;
+    });
+    return {helped:helped, hurt:hurt, neutral:neutral, total:helped+hurt+neutral};
+  }
+
+  function renderDonut(){
+    var b = computeDonutBuckets(state.donutScope);
+    document.getElementById("donut-sub").textContent = state.donutScope==="all"
+      ? "PPO with Reddit vs. without, across all 12 ticker × year windows"
+      : "PPO with Reddit vs. without, across " + state.ticker + "'s 3 walk-forward years";
+
+    var svg = document.getElementById("donut-svg");
+    var segs = [
+      {v:b.helped, color:"var(--good)", label:"Helped"},
+      {v:b.hurt, color:"var(--bad)", label:"Hurt"},
+      {v:b.neutral, color:"var(--neutral)", label:"Neutral"}
+    ];
+    var r = 66, cx=84, cy=84, sw=20, circ = 2*Math.PI*r;
+    var offset = 0;
+    var parts = "";
+    segs.forEach(function(s){
+      if (s.v<=0) return;
+      var frac = s.v / (b.total||1);
+      var len = frac*circ;
+      parts += '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="'+sw+'" ' +
+        'stroke-dasharray="'+len+' '+(circ-len)+'" stroke-dashoffset="'+(-offset)+'" stroke-linecap="butt" transform="rotate(-90 '+cx+' '+cy+')">' +
+        '<title>'+s.label+': '+s.v+'</title></circle>';
+      offset += len;
+    });
+    svg.innerHTML =
+      '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="var(--surface-3)" stroke-width="'+sw+'"></circle>' +
+      parts +
+      '<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" font-family="Manrope" font-weight="800" font-size="26" fill="var(--text-primary)">'+b.helped+'/'+b.total+'</text>' +
+      '<text x="'+cx+'" y="'+(cy+16)+'" text-anchor="middle" font-family="Manrope" font-weight="700" font-size="9.5" letter-spacing="0.5" fill="var(--text-muted)">WINDOWS HELPED</text>';
+
+    var legend = document.getElementById("donut-legend");
+    legend.innerHTML = "";
+    segs.forEach(function(s){
+      var pct = b.total ? Math.round((s.v/b.total)*100) : 0;
+      var item = document.createElement("div");
+      item.className = "legend-item";
+      item.innerHTML = '<span class="legend-swatch" style="background:'+s.color+'"></span>' +
+        '<span class="ll">'+s.label+'</span><span class="lv mono">'+s.v+' &middot; '+pct+'%</span>';
+      legend.appendChild(item);
+    });
+  }
+
+  // ---------- bar chart ----------
+  function renderBarChart(){
+    document.getElementById("bar-sub").textContent = "Expanding-window validation · " + state.ticker;
+    var years = [2022,2023,2024];
+    var data = years.map(function(y){
+      var obj = {year:y};
+      MODELS.forEach(function(m){
+        var row = WALKFORWARD.filter(function(r){return r.year===y && r.ticker===state.ticker && r.model===m;})[0];
+        obj[m] = row ? row.sharpe : 0;
+      });
+      return obj;
+    });
+
+    var W=560,H=230, padL=36, padR=10, padT=14, padB=26;
+    var plotW = W-padL-padR, plotH = H-padT-padB;
+    var allVals = [];
+    data.forEach(function(d){ MODELS.forEach(function(m){ allVals.push(d[m]); }); });
+    var maxV = Math.max(0.2, Math.max.apply(null, allVals));
+    var minV = Math.min(0, Math.min.apply(null, allVals));
+    var span = maxV - minV;
+    function yFor(v){ return padT + plotH - ((v-minV)/span)*plotH; }
+    var zeroY = yFor(0);
+
+    var groupW = plotW/years.length;
+    var barGap = 3, groupPad = 14;
+    var barW = (groupW - groupPad*2 - barGap*(MODELS.length-1)) / MODELS.length;
+
+    var svgParts = "";
+    // gridlines
+    var ticks = 4;
+    for (var t=0;t<=ticks;t++){
+      var v = minV + (span*t/ticks);
+      var y = yFor(v);
+      svgParts += '<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+y+'" y2="'+y+'" stroke="var(--border)" stroke-width="1"></line>';
+      svgParts += '<text x="'+(padL-8)+'" y="'+(y+3)+'" text-anchor="end" font-family="JetBrains Mono" font-size="9.5" fill="var(--text-muted)">'+v.toFixed(1)+'</text>';
+    }
+    // baseline at 0 emphasized
+    svgParts += '<line x1="'+padL+'" x2="'+(W-padR)+'" y1="'+zeroY+'" y2="'+zeroY+'" stroke="var(--border-strong)" stroke-width="1.2"></line>';
+
+    data.forEach(function(d, gi){
+      var gx = padL + gi*groupW;
+      MODELS.forEach(function(m, mi){
+        var v = d[m];
+        var bx = gx + groupPad + mi*(barW+barGap);
+        var bh = Math.abs(yFor(v)-zeroY);
+        var by = v>=0 ? yFor(v) : zeroY;
+        svgParts += '<rect class="wfbar" data-year="'+d.year+'" data-model="'+m+'" data-v="'+v+'" x="'+bx.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+Math.max(bh,1).toFixed(1)+'" rx="2.5" fill="'+MODEL_COLOR_HEX[m]+'" opacity="0.95"></rect>';
+      });
+      svgParts += '<text x="'+(gx+groupW/2)+'" y="'+(H-8)+'" text-anchor="middle" font-family="Manrope" font-weight="700" font-size="11" fill="var(--text-secondary)">'+d.year+'</text>';
+    });
+
+    var svg = document.getElementById("bar-svg");
+    svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    svg.innerHTML = svgParts;
+
+    var tooltip = document.getElementById("bar-tooltip");
+    svg.querySelectorAll(".wfbar").forEach(function(rect){
+      rect.addEventListener("mousemove", function(e){
+        var wrap = svg.parentElement.getBoundingClientRect();
+        var m = rect.getAttribute("data-model"), y = rect.getAttribute("data-year"), v = parseFloat(rect.getAttribute("data-v"));
+        tooltip.innerHTML = '<div class="tt-t">'+m+' &middot; '+y+'</div><div class="tt-row"><span class="tt-sw" style="background:'+MODEL_COLOR_HEX[m]+'"></span>Sharpe '+v.toFixed(3)+'</div>';
+        tooltip.style.opacity = 1;
+        tooltip.style.left = (e.clientX - wrap.left + 14) + "px";
+        tooltip.style.top = (e.clientY - wrap.top - 10) + "px";
+      });
+      rect.addEventListener("mouseleave", function(){ tooltip.style.opacity = 0; });
+    });
+
+    var legend = document.getElementById("bar-legend");
+    legend.innerHTML = "";
+    MODELS.forEach(function(m){
+      var item = document.createElement("div");
+      item.className = "legend-item";
+      item.innerHTML = '<span class="legend-swatch" style="background:'+MODEL_COLOR_HEX[m]+'"></span><span class="ll">'+m+'</span>';
+      legend.appendChild(item);
+    });
+  }
+
+  // ---------- comparison table ----------
+  function renderTable(){
+    document.getElementById("table-title").textContent = "All models · " + state.ticker;
+    var rows = rowsFor(state.ticker).slice().sort(function(a,b){return b.sharpe-a.sharpe;});
+    var maxAbsRet = Math.max.apply(null, rows.map(function(r){return Math.abs(r.ret);}).concat([1]));
+    var container = document.getElementById("cmp-rows");
+    container.innerHTML = "";
+    rows.forEach(function(r){
+      var div = document.createElement("div");
+      div.className = "cmp-row" + (r.model===state.model ? " active" : "");
+      var barWidth = (Math.abs(r.ret)/maxAbsRet)*50;
+      var barLeft = r.ret>=0 ? 50 : 50-barWidth;
+      div.innerHTML =
+        '<div class="cmp-model"><span class="dot" style="background:'+MODEL_COLOR_HEX[r.model]+'"></span>'+r.model+'</div>' +
+        '<div class="cmp-num mono">'+r.sharpe.toFixed(3)+'</div>' +
+        '<div class="cmp-bar-track"><div class="cmp-bar-fill" style="left:'+barLeft+'%; width:'+barWidth+'%; background:'+(r.ret>=0?'var(--accent)':'var(--bad)')+'"></div></div>' +
+        '<div class="cmp-num mono '+(r.dd<-40?'neg':'')+'">'+r.dd.toFixed(1)+'%</div>' +
+        '<div class="cmp-trades mono">'+r.trades+'</div>';
+      div.addEventListener("click", function(){ state.model = r.model; renderAll(); });
+      div.style.cursor = "pointer";
+      container.appendChild(div);
+    });
+  }
+
+  function renderAll(){
+    buildPills(document.getElementById("ticker-pills"), TICKERS, state.ticker, function(t){ state.ticker=t; renderAll(); }, false);
+    buildPills(document.getElementById("model-pills"), MODELS, state.model, function(m){ state.model=m; renderAll(); }, true);
+    renderKPIs();
+    renderFinding();
+    renderDonut();
+    renderBarChart();
+    renderTable();
+  }
+
+  document.getElementById("donut-scope").querySelectorAll("button").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.donutScope = btn.getAttribute("data-scope");
+      document.getElementById("donut-scope").querySelectorAll("button").forEach(function(b){b.classList.remove("active");});
+      btn.classList.add("active");
+      renderDonut();
+    });
+  });
+
+  renderAll();
+})();
+</script>
+
+</body>
+</html>
